@@ -7,7 +7,8 @@ import {
   GraduationCap,
   MessageSquare,
   LogOut,
-  User
+  User,
+  ArrowLeft
 } from 'lucide-react';
 // Fix: Added import for MOCK_STUDENT from constants file
 import { MOCK_STUDENT } from '../constants';
@@ -16,6 +17,8 @@ interface SidebarProps {
   currentView: string;
   onNavigate: (view: any) => void;
   onLogout?: () => void;
+  isAdmin?: boolean;
+  onBackToAdmin?: () => void;
 }
 
 const NavItem: React.FC<{ icon: React.ReactNode; label: string; active?: boolean; onClick: () => void }> = ({ icon, label, active, onClick }) => (
@@ -31,15 +34,27 @@ const NavItem: React.FC<{ icon: React.ReactNode; label: string; active?: boolean
   </button>
 );
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout, isAdmin, onBackToAdmin }) => {
   return (
     <aside className="w-20 lg:w-64 bg-white border-r-2 border-slate-100 flex flex-col p-4 transition-all duration-300">
-      <div className="flex items-center gap-3 mb-12 px-2">
+      <div className="flex items-center gap-3 mb-10 px-2">
         <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shrink-0">
           <GraduationCap size={24} />
         </div>
         <span className="hidden lg:block text-xl font-bold text-slate-800 tracking-tight">EduSoft</span>
       </div>
+
+      {isAdmin && onBackToAdmin && (
+        <div className="mb-6 px-2">
+          <button
+            onClick={onBackToAdmin}
+            className="w-full flex items-center gap-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg transition-colors font-bold text-sm"
+          >
+            <ArrowLeft size={16} />
+            <span className="hidden lg:inline">Liste élèves</span>
+          </button>
+        </div>
+      )}
 
       <nav className="flex-1 space-y-2">
         <NavItem
@@ -66,12 +81,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout }) 
           active={currentView === 'documents' || currentView === 'doc-detail'}
           onClick={() => onNavigate('documents')}
         />
-        <NavItem
-          icon={<User size={20} />}
-          label="Mon Profil"
-          active={currentView === 'profile'}
-          onClick={() => onNavigate('profile')}
-        />
+        {!isAdmin && (
+          <NavItem
+            icon={<User size={20} />}
+            label="Mon Profil"
+            active={currentView === 'profile'}
+            onClick={() => onNavigate('profile')}
+          />
+        )}
       </nav>
 
       <div className="mt-auto space-y-4">
