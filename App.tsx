@@ -27,6 +27,8 @@ import { supabase } from './lib/supabase';
 
 type View = 'dashboard' | 'courses' | 'documents' | 'doc-detail' | 'reports' | 'report-detail';
 
+const ADMIN_EMAIL = 'w.elghouti@gmail.com';
+
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -47,24 +49,32 @@ const App: React.FC = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      checkUserRole(session?.user.id);
+      checkUserRole(session?.user.id, session?.user.email);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      checkUserRole(session?.user.id);
+      checkUserRole(session?.user.id, session?.user.email);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkUserRole = async (userId?: string) => {
+  const checkUserRole = async (userId?: string, email?: string) => {
     if (!userId) {
       setIsAdmin(false);
       return;
     }
+
+    // 1. Hardcoded Admin Check
+    if (email === ADMIN_EMAIL) {
+      setIsAdmin(true);
+      return;
+    }
+
+    // 2. Database Role Check (Fallback)
     const { data } = await supabase
       .from('profiles')
       .select('role')
