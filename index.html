@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSoft - Apprendre avec Joie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #FAF9F6;
+            /* Paper-like off-white */
+        }
+
+        .paper-border {
+            border-width: 2px;
+            border-style: solid;
+            border-color: #E2E8F0;
+        }
+
+        .view-transition {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .flat-card {
+            background: white;
+            border-radius: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .flat-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+
+</head>
+
+<body class="text-slate-700">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
