@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  LayoutDashboard,
   BookOpen,
-  FileText,
   Search,
   ArrowLeft,
-  MessageSquare,
   Plus,
-  FilePlus
+  FilePlus,
+  Upload,
+  User as UserIcon,
+  LogOut
 } from 'lucide-react';
 import { Session } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
@@ -19,41 +19,50 @@ import SessionReportList from './components/SessionReportList';
 import SessionReportDetail from './components/SessionReportDetail';
 import Login from './components/Login';
 import StudentList from './components/StudentList';
-import ProfileForm from './components/ProfileForm'; // Added ProfileForm import
+import ProfileForm from './components/ProfileForm';
+import CreateTaskModal from './components/CreateTaskModal';
+import CreateReportModal from './components/CreateReportModal';
+
 import { MOCK_STUDENT } from './constants';
 import { Document, SessionReport } from './types';
 import { supabase } from './lib/supabase';
 
 type View = 'dashboard' | 'courses' | 'documents' | 'doc-detail' | 'reports' | 'report-detail' | 'profile' | 'onboarding';
 
-const ADMIN_EMAIL = 'w.elghouti@gmail.com';
+const ADMIN_EMAIL = 'w.elghouti@gmail.com'; // Change si besoin
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [viewingStudentId, setViewingStudentId] = useState<string | null>(null);
 
+  // Data States
   const [student, setStudent] = useState<any>(null);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
-
-  const [currentView, setCurrentView] = useState<View>('dashboard');
   const [documents, setDocuments] = useState<Document[]>([]);
+
+  // UI States
+  const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [selectedReport, setSelectedReport] = useState<SessionReport | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Modals States
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- AUTH & INITIALIZATION ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       checkUserRole(session?.user.id, session?.user.email);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       checkUserRole(session?.user.id, session?.user.email);
     });
@@ -61,38 +70,21 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setIsAdmin(false);
-    setViewingStudentId(null);
-  };
-
   const checkUserRole = async (userId?: string, email?: string) => {
-    if (!userId) {
-      setIsAdmin(false);
-      return;
-    }
+    if (!userId) { setIsAdmin(false); return; }
 
-    // 1. Hardcoded Admin Check
     if (email === ADMIN_EMAIL) {
       setIsAdmin(true);
       return;
     }
 
-    // 2. Database Role Check (Fallback)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
+    const { data, error } = await supabase.from('profiles').select('role').eq('id', userId).single();
 
-    // Security Fix: Detect Ghost Users but redirect to Onboarding
     if (error || !data) {
-      console.warn("Profil manquant -> Redirection vers Onboarding.");
+      // Si pas de profil, on redirige vers l'onboarding au lieu de logout
       setIsAdmin(false);
-      setViewingStudentId(userId); // Keep ID to create profile
-      setCurrentView('onboarding'); // Force onboarding view
+      setViewingStudentId(userId);
+      setCurrentView('onboarding');
       return;
     }
 
@@ -100,612 +92,287 @@ const App: React.FC = () => {
       setIsAdmin(true);
     } else {
       setIsAdmin(false);
-      setViewingStudentId(userId); // Student views themselves
+      setViewingStudentId(userId);
     }
   };
 
-  const handleToggleTask = async (taskId: string, currentStatus: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ is_completed: !currentStatus })
-        .eq('id', taskId);
-
-      if (error) throw error;
-
-      setTasks(prev => prev.map(t =>
-        t.id === taskId ? { ...t, is_completed: !currentStatus } : t
-      ));
-    } catch (err) {
-      console.error('Error updating task:', err);
-    }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setIsAdmin(false);
+    setViewingStudentId(null);
+    setStudent(null);
   };
 
-  const handleProfileUpdate = async () => {
-    // Re-fetch profile data to update UI
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', viewingStudentId)
-      .single();
-    if (data) setStudent(data);
-
-    // If we were onboarding, go to dashboard
-    if (currentView === 'onboarding') {
-      setCurrentView('dashboard');
-    } else {
-      alert('Profil mis à jour !');
-    }
-  };
-
-  // Data Fetching Effect (Existing + Updates)
-  useEffect(() => {
+  // --- DATA FETCHING ---
+  const fetchData = async () => {
     if (!session || !viewingStudentId) return;
-
-    const fetchData = async () => {
-      setIsLoading(true);
-
-      /* @ts-ignore */
-      if (supabase.supabaseUrl === 'https://placeholder.supabase.co') {
-        setError("Configuration manquante : Vérifiez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans .env");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        // 1. Fetch Student Profile
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', viewingStudentId)
-          .single();
-
-        if (profileData) {
-          setStudent(profileData);
-
-          // Onboarding Check: If student view and name is empty, force onboarding
-          if (!isAdmin && (!profileData.name || profileData.name.trim() === '')) {
-            setCurrentView('onboarding');
-            setIsLoading(false);
-            return; // Stop fetching other data if onboarding is needed
-          }
-        }
-
-        // 2. Fetch Subjects
-        const { data: subjectsData } = await supabase
-          .from('subjects')
-          .select('*')
-          .eq('student_id', viewingStudentId);
-        if (subjectsData) setSubjects(subjectsData);
-
-        // 3. Fetch Tasks
-        const { data: tasksData } = await supabase
-          .from('tasks')
-          .select('*')
-          .eq('student_id', viewingStudentId)
-          .order('created_at', { ascending: false });
-        if (tasksData) setTasks(tasksData);
-
-        // 4. Fetch Documents
-        const { data: docsData, error: docsError } = await supabase
-          .from('documents')
-          .select('*')
-          .eq('student_id', viewingStudentId)
-          .order('created_at', { ascending: false });
-
-        if (docsError) throw docsError;
-
-        if (docsData) {
-          const mappedDocs: Document[] = docsData.map((d: any) => ({
-            id: d.id,
-            name: d.name,
-            type: d.type,
-            size: d.size,
-            created_at: new Date(d.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-            file_url: d.file_url,
-            student_id: d.student_id
-          }));
-          setDocuments(mappedDocs);
-        }
-
-        // 5. Fetch Reports
-        const { data: reportsData } = await supabase
-          .from('sessions_reports')
-          .select('*')
-          .eq('student_id', viewingStudentId)
-          .order('created_at', { ascending: false });
-
-        if (reportsData) {
-          const mappedReports = reportsData.map((r: any) => ({
-            ...r,
-            created_at: new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-          }));
-          setReports(mappedReports);
-        }
-
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [session, viewingStudentId, isAdmin]);
-
-  const navigateTo = (view: View) => setCurrentView(view);
-
-  const handleDocClick = (doc: Document) => {
-    setSelectedDoc(doc);
-    setCurrentView('doc-detail');
-  };
-
-  const handleReportClick = (report: SessionReport) => {
-    setSelectedReport(report);
-    setCurrentView('report-detail');
-  };
-
-  const handleAddDocument = async (file: File) => {
-    if (!session) return;
     setIsLoading(true);
+
     try {
-      // 1. Upload to Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(fileName, file);
+      // 1. Profile
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', viewingStudentId).single();
+      if (profileData) setStudent(profileData);
+      else if (!isAdmin) setCurrentView('onboarding');
 
-      if (uploadError) throw uploadError;
+      // 2. Subjects
+      const { data: subData } = await supabase.from('subjects').select('*').eq('student_id', viewingStudentId);
+      if (subData) setSubjects(subData);
 
-      // 2. Get Public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('documents')
-        .getPublicUrl(fileName);
+      // 3. Tasks
+      const { data: taskData } = await supabase.from('tasks').select('*').eq('student_id', viewingStudentId).order('created_at', { ascending: false });
+      if (taskData) setTasks(taskData);
 
-      // 3. Insert into Database
-      const newDocPayload = {
-        name: file.name,
-        type: file.name.endsWith('.pdf') ? 'pdf' : file.type.includes('image') ? 'image' : 'doc',
-        size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-        file_url: publicUrl,
-        student_id: viewingStudentId // Associate with current student
-      };
-
-      const { data: insertData, error: insertError } = await supabase
-        .from('documents')
-        .insert([newDocPayload])
-        .select();
-
-      if (insertError) throw insertError;
-
-      if (insertData && insertData[0]) {
-        const d = insertData[0];
-        const newDoc: Document = {
-          id: d.id,
-          name: d.name,
-          type: d.type,
-          size: d.size,
-          created_at: new Date(d.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-          file_url: d.file_url,
-          student_id: d.student_id
-        };
-        setDocuments(prev => [newDoc, ...prev]);
+      // 4. Documents
+      const { data: docData } = await supabase.from('documents').select('*').eq('student_id', viewingStudentId).order('created_at', { ascending: false });
+      if (docData) {
+        setDocuments(docData.map((d: any) => ({
+          ...d,
+          created_at: new Date(d.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+        })));
       }
 
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      alert('Oups, le fichier n\'a pas pu être envoyé.');
+      // 5. Reports
+      const { data: repData } = await supabase.from('sessions_reports').select('*').eq('student_id', viewingStudentId).order('created_at', { ascending: false });
+      if (repData) {
+        setReports(repData.map((r: any) => ({
+          ...r,
+          created_at: new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+        })));
+      }
+
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, [session, viewingStudentId, isAdmin]);
+
+
+  // --- ACTIONS ---
+  const handleToggleTask = async (taskId: string, currentStatus: boolean) => {
+    if (isAdmin) return; // Prof ne coche pas les devoirs
+    await supabase.from('tasks').update({ is_completed: !currentStatus }).eq('id', taskId);
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, is_completed: !currentStatus } : t));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !viewingStudentId) return;
+
+    try {
+      const fileName = `${Date.now()}.${file.name.split('.').pop()}`;
+      const { data, error } = await supabase.storage.from('documents').upload(fileName, file);
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage.from('documents').getPublicUrl(fileName);
+
+      await supabase.from('documents').insert({
+        student_id: viewingStudentId,
+        name: file.name,
+        type: file.type.includes('pdf') ? 'pdf' : 'doc',
+        size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+        file_url: publicUrl
+      });
+
+      fetchData(); // Refresh
+      alert("Document ajouté !");
+    } catch (err) {
+      console.error(err);
+      alert("Erreur upload");
+    }
+  };
+
+  const handleProfileUpdate = () => {
+    fetchData();
+    if (currentView === 'onboarding') setCurrentView('dashboard');
+  };
+
+  // --- RENDERERS ---
   const renderContent = () => {
-    switch (currentView) {
-      case 'dashboard':
-        // --- TEACHER VIEW (ADMIN) ---
-        if (isAdmin) {
-          return (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-              {/* 1. Header Admin: Fiche Élève */}
-              <div className="bg-white p-8 rounded-[32px] paper-border relative overflow-hidden">
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h1 className="text-3xl font-bold text-slate-800">📂 Dossier : {student?.name || 'Élève'}</h1>
-                      <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold border border-indigo-200">
-                        {student?.grade || 'Classe inconnue'}
-                      </span>
-                    </div>
-                    <p className="text-slate-500 font-medium">Espace de supervision pédagogique</p>
-                  </div>
+    // VUE ADMIN SPÉCIALE
+    if (isAdmin && currentView === 'dashboard') {
+      return (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {/* HEADER FICHE ÉLÈVE */}
+          <div className="bg-white p-8 rounded-[32px] paper-border mb-8 flex justify-between items-center shadow-sm">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-800 mb-1">Dossier : {student?.name || 'Sans Nom'}</h2>
+              <p className="text-slate-500 font-bold uppercase tracking-wider text-xs">Classe : {student?.grade || 'Non définie'}</p>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2"
+              >
+                <Upload size={20} /> Ajouter Document
+              </button>
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} hidden />
 
-                  <button
-                    onClick={() => setViewingStudentId(null)}
-                    className="bg-red-50 text-red-600 hover:bg-red-100 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-colors border border-red-100"
-                  >
-                    <ArrowLeft size={20} /> Retour à la liste
-                  </button>
-                </div>
-              </div>
+              <button
+                onClick={() => setIsReportModalOpen(true)}
+                className="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2"
+              >
+                <FilePlus size={20} /> Compte Rendu
+              </button>
 
-              {/* 2. Command Zone (Actions Rapides) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Card: Add Document */}
-                <button
-                  onClick={() => document.getElementById('admin-doc-upload')?.click()}
-                  className="bg-white p-6 rounded-[24px] paper-border hover:border-indigo-300 hover:shadow-lg transition-all text-left group flex flex-col justify-between h-40"
-                >
-                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                    <FileText size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-800 group-hover:text-indigo-700">Ajouter un Document</h3>
-                    <p className="text-slate-400 text-sm">PDF, Exercice, Fiche...</p>
-                  </div>
-                  {/* Hidden Input for generic doc upload trigger */}
-                  <input type="file" id="admin-doc-upload" className="hidden" onChange={(e) => e.target.files && handleAddDocument(e.target.files[0])} />
-                </button>
+              <button
+                onClick={() => setIsTaskModalOpen(true)}
+                className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-200"
+              >
+                <Plus size={20} /> Nouveau Devoir
+              </button>
+            </div>
+          </div>
 
-                {/* Card: New Report */}
-                <button
-                  onClick={() => alert('Ouvrir Modale: Nouveau Compte Rendu')}
-                  className="bg-white p-6 rounded-[24px] paper-border hover:border-emerald-300 hover:shadow-lg transition-all text-left group flex flex-col justify-between h-40"
-                >
-                  <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                    <MessageSquare size={24} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* VUE RAPIDE DEVOIRS */}
+            <div className="bg-white p-6 rounded-[24px] paper-border">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">Devoirs en cours</h3>
+              <div className="space-y-3">
+                {tasks.slice(0, 3).map(t => (
+                  <div key={t.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between">
+                    <span className="font-medium text-slate-700">{t.title}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${t.is_completed ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                      {t.is_completed ? 'Fait' : 'À faire'}
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-800 group-hover:text-emerald-700">Rédiger un Bilan</h3>
-                    <p className="text-slate-400 text-sm">Résumé de séance...</p>
-                  </div>
-                </button>
-
-                {/* Card: Give Homework */}
-                <button
-                  onClick={() => alert('Ouvrir Modale: Nouveau Devoir')}
-                  className="bg-white p-6 rounded-[24px] paper-border hover:border-orange-300 hover:shadow-lg transition-all text-left group flex flex-col justify-between h-40"
-                >
-                  <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
-                    <Plus size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-800 group-hover:text-orange-700">Donner un Devoir</h3>
-                    <p className="text-slate-400 text-sm">Exercice à faire...</p>
-                  </div>
-                </button>
-              </div>
-
-              {/* 3. Synthetic View (3 Columns) */}
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-
-                {/* Col 1: Documents Récents */}
-                <div className="bg-white p-6 rounded-[24px] paper-border">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><FileText size={20} className="text-slate-400" /> Documents Récents</h3>
-                    <button onClick={() => navigateTo('documents')} className="text-sm font-bold text-indigo-600 hover:underline">Voir tout</button>
-                  </div>
-                  <div className="space-y-4">
-                    {documents.slice(0, 3).map((doc) => (
-                      <div key={doc.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer" onClick={() => handleDocClick(doc)}>
-                        <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-500 shrink-0">
-                          <FileText size={20} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-800 text-sm truncate">{doc.name}</p>
-                          <p className="text-xs text-slate-400">{doc.created_at}</p>
-                        </div>
-                      </div>
-                    ))}
-                    {documents.length === 0 && <p className="text-slate-400 italic text-sm">Aucun document.</p>}
-                  </div>
-                </div>
-
-                {/* Col 2: Historique Rapports */}
-                <div className="bg-white p-6 rounded-[24px] paper-border">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><MessageSquare size={20} className="text-slate-400" /> Rapports</h3>
-                    <button onClick={() => navigateTo('reports')} className="text-sm font-bold text-emerald-600 hover:underline">Voir tout</button>
-                  </div>
-                  <div className="space-y-4">
-                    {reports.slice(0, 3).map((report) => (
-                      <div key={report.id} className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 cursor-pointer hover:shadow-sm transition-all" onClick={() => handleReportClick(report)}>
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-bold text-emerald-800 text-sm">{report.created_at}</span>
-                          {report.is_new && <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>}
-                        </div>
-                        <p className="text-xs text-emerald-700 line-clamp-2 italic">"{report.summary}"</p>
-                      </div>
-                    ))}
-                    {reports.length === 0 && <p className="text-slate-400 italic text-sm">Aucun rapport.</p>}
-                  </div>
-                </div>
-
-                {/* Col 3: Devoirs (Tasks) */}
-                <div className="bg-white p-6 rounded-[24px] paper-border">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Plus size={20} className="text-slate-400" /> Devoirs à faire</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {tasks.filter(t => !t.is_completed).slice(0, 5).map((task) => (
-                      <div key={task.id} className="flex items-start gap-3">
-                        <div className={`w-3 h-3 rounded-full mt-1.5 shrink-0 ${task.color?.includes('emerald') ? 'bg-emerald-400' : 'bg-indigo-400'}`}></div>
-                        <div>
-                          <p className="text-sm font-bold text-slate-700">{task.title}</p>
-                          <p className="text-xs text-slate-400">{task.due_date || 'En cours'}</p>
-                        </div>
-                      </div>
-                    ))}
-                    {tasks.filter(t => !t.is_completed).length === 0 && <p className="text-slate-400 italic text-sm">Aucun devoir en cours.</p>}
-                  </div>
-                </div>
-
+                ))}
+                {tasks.length === 0 && <p className="text-slate-400 italic text-sm">Aucun devoir.</p>}
               </div>
             </div>
-          );
-        }
 
-        // --- STUDENT VIEW (ORIGINAL) ---
+            {/* VUE RAPIDE RAPPORTS */}
+            <div className="bg-white p-6 rounded-[24px] paper-border">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">Derniers Rapports</h3>
+              <div className="space-y-3">
+                {reports.slice(0, 3).map(r => (
+                  <div key={r.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="font-bold text-slate-800 text-sm">{r.summary}</div>
+                    <div className="text-xs text-slate-500">{r.created_at}</div>
+                  </div>
+                ))}
+                {reports.length === 0 && <p className="text-slate-400 italic text-sm">Aucun rapport.</p>}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // VUE ÉLÈVE CLASSIQUE
+    switch (currentView) {
+      case 'dashboard':
         const overallProgress = subjects.length > 0
           ? Math.round(subjects.reduce((acc, curr) => acc + (curr.progress || 0), 0) / subjects.length)
           : 0;
-
         return (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="xl:col-span-2 space-y-8">
-              <WelcomeCard
-                student={student || MOCK_STUDENT}
-                overallProgress={overallProgress}
-                onRevise={() => navigateTo('courses')}
-              />
-
+              <WelcomeCard student={student || MOCK_STUDENT} overallProgress={overallProgress} onRevise={() => setCurrentView('courses')} />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="bg-white p-6 rounded-[24px] paper-border">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <BookOpen className="text-blue-400" size={24} />
-                    Mes Progrès
-                  </h3>
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><BookOpen className="text-blue-400" size={24} /> Mes Progrès</h3>
                   <div className="space-y-6">
-                    {subjects.map((sub, idx) => (
-                      <ProgressCard key={idx} subject={sub.name} progress={sub.progress} color={sub.color} />
-                    ))}
-                    {subjects.length === 0 && <p className="text-slate-400 italic">Aucune matière trouvée.</p>}
+                    {subjects.map((sub, idx) => <ProgressCard key={idx} subject={sub.name} progress={sub.progress} color={sub.color} />)}
                   </div>
                 </div>
-
-                {isLoading ? (
-                  <div className="p-4 text-center text-slate-400 italic">Chargement des documents...</div>
-                ) : (
-                  <DocumentList documents={documents} onDocClick={handleDocClick} onAddDocument={handleAddDocument} isAdmin={isAdmin} />
-                )}
+                <DocumentList documents={documents} onDocClick={(doc) => { setSelectedDoc(doc); setCurrentView('doc-detail'); }} onAddDocument={() => { }} isAdmin={false} />
               </div>
             </div>
-
             <div className="space-y-8">
-              {isAdmin && (
-                <button
-                  className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
-                  onClick={() => alert('Fonctionnalité "Ajouter une tâche" à venir')}
-                >
-                  <Plus size={20} />
-                  Ajouter une tâche
-                </button>
-              )}
               <TaskBoard tasks={tasks} />
-
               {reports.length > 0 && (
-                <div
-                  onClick={() => navigateTo('reports')}
-                  className="bg-emerald-50 p-6 rounded-[24px] paper-border border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-colors group"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-emerald-800">Dernier compte rendu</h4>
-                    {reports[0].is_new && (
-                      <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">NOUVEAU</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-emerald-700 leading-relaxed mb-4 italic line-clamp-2">
-                    "{reports[0].summary}"
-                  </p>
-                  <span className="text-emerald-800 text-xs font-bold flex items-center gap-1 group-hover:gap-2 transition-all">
-                    Tout lire <ArrowLeft size={14} className="rotate-180" />
-                  </span>
+                <div onClick={() => setCurrentView('reports')} className="bg-emerald-50 p-6 rounded-[24px] paper-border border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-colors group">
+                  <h4 className="font-bold text-emerald-800 mb-2">Dernier compte rendu</h4>
+                  <p className="text-sm text-emerald-700 italic line-clamp-2">"{reports[0].summary}"</p>
                 </div>
               )}
             </div>
           </div>
         );
 
-      case 'courses':
-        return (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <button onClick={() => navigateTo('dashboard')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold mb-6 transition-all">
-              <ArrowLeft size={20} /> Retour au tableau de bord
-            </button>
-            <h2 className="text-3xl font-bold mb-8">Mes Cours</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {subjects.map((sub, idx) => (
-                <div key={idx} className="bg-white p-8 rounded-[24px] paper-border hover:border-indigo-200 transition-colors cursor-pointer group">
-                  <div className={`w-12 h-12 ${sub.color} rounded-2xl mb-4 opacity-80 group-hover:opacity-100`}></div>
-                  <h3 className="text-xl font-bold mb-2">{sub.name}</h3>
-                  <p className="text-slate-500 text-sm mb-4">Dernière séance : il y a 2 jours</p>
-                  <div className="h-2 w-full bg-slate-100 rounded-full">
-                    <div className={`h-full ${sub.color} rounded-full`} style={{ width: `${sub.progress}%` }}></div>
-                  </div>
-                </div>
-              ))}
-              {subjects.length === 0 && <p className="text-slate-500">Aucun cours trouvé.</p>}
-            </div>
-          </div>
-        );
+      case 'courses': return <div className="p-4">Cours (à venir) <button onClick={() => setCurrentView('dashboard')}>Retour</button></div>;
 
       case 'documents':
         return (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <button onClick={() => navigateTo('dashboard')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold mb-6 transition-all">
-              <ArrowLeft size={20} /> Retour
-            </button>
-            <h2 className="text-3xl font-bold mb-8">Tous mes Documents</h2>
-            <DocumentList documents={documents} onDocClick={handleDocClick} onAddDocument={handleAddDocument} isAdmin={isAdmin} />
+          <div>
+            <button onClick={() => setCurrentView('dashboard')} className="flex items-center gap-2 text-slate-500 font-bold mb-6"><ArrowLeft size={20} /> Retour</button>
+            <DocumentList documents={documents} onDocClick={(doc) => { setSelectedDoc(doc); setCurrentView('doc-detail'); }} onAddDocument={() => { }} isAdmin={isAdmin} />
           </div>
         );
 
       case 'doc-detail':
         return (
-          <div className="animate-in fade-in zoom-in-95 duration-300 max-w-4xl mx-auto">
-            <button onClick={() => navigateTo('documents')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold mb-6 transition-all">
-              <ArrowLeft size={20} /> Retour aux documents
-            </button>
-            <div className="bg-white p-10 rounded-[32px] paper-border min-h-[600px] flex flex-col items-center justify-center text-center w-full">
-              {selectedDoc?.type === 'pdf' || selectedDoc?.file_url ? (
-                <div className="w-full h-[600px] bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-200">
-                  <iframe
-                    src={selectedDoc?.file_url || 'https://pdfobject.com/pdf/sample.pdf'}
-                    className="w-full h-full"
-                    title="Document Viewer"
-                  />
-                </div>
-              ) : (
-                <>
-                  <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center text-indigo-500 mb-6">
-                    <FileText size={40} />
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2">{selectedDoc?.name}</h2>
-                  <p className="text-slate-400 mb-8 tracking-wide uppercase text-xs font-bold">
-                    {selectedDoc?.type.toUpperCase()} • {selectedDoc?.size} • Ajouté le {selectedDoc?.created_at}
-                  </p>
-                  <div className="w-full max-w-md bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-slate-200 mb-8">
-                    <p className="text-slate-500 italic">"L'aperçu du document sera disponible prochainement."</p>
-                  </div>
-                  <button className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100">
-                    Télécharger le document
-                  </button>
-                </>
-              )}
-            </div>
+          <div className="h-full flex flex-col">
+            <button onClick={() => setCurrentView('documents')} className="flex items-center gap-2 text-slate-500 font-bold mb-4"><ArrowLeft size={20} /> Retour</button>
+            <iframe src={selectedDoc?.file_url} className="w-full h-[80vh] rounded-2xl border-2 border-slate-200" title="Doc" />
           </div>
         );
 
       case 'reports':
         return (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-            <button onClick={() => navigateTo('dashboard')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold mb-6 transition-all">
-              <ArrowLeft size={20} /> Retour
-            </button>
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold">Comptes Rendus de séances</h2>
-              <div className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm">
-                {reports.length} séances au total
-              </div>
-            </div>
-
-            {isAdmin && (
-              <button
-                className="w-full mb-8 bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
-                onClick={() => alert('Fonctionnalité "Nouveau Compte Rendu" à venir')}
-              >
-                <FilePlus size={20} />
-                Nouveau Compte Rendu
-              </button>
-            )}
-
-            <SessionReportList reports={reports} onReportClick={handleReportClick} />
+          <div>
+            <button onClick={() => setCurrentView('dashboard')} className="flex items-center gap-2 text-slate-500 font-bold mb-6"><ArrowLeft size={20} /> Retour</button>
+            <SessionReportList reports={reports} onReportClick={(r) => { setSelectedReport(r); setCurrentView('report-detail'); }} />
           </div>
         );
 
       case 'report-detail':
         return (
-          <div className="animate-in fade-in zoom-in-95 duration-300 max-w-3xl mx-auto">
-            <button onClick={() => navigateTo('reports')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold mb-6 transition-all">
-              <ArrowLeft size={20} /> Retour aux comptes rendus
-            </button>
+          <div>
+            <button onClick={() => setCurrentView('reports')} className="flex items-center gap-2 text-slate-500 font-bold mb-6"><ArrowLeft size={20} /> Retour</button>
             {selectedReport && <SessionReportDetail report={selectedReport} />}
           </div>
         );
 
       case 'profile':
+      case 'onboarding':
         return (
           <ProfileForm
-            userId={viewingStudentId!} // Safe because we check viewingStudentId
+            userId={viewingStudentId!}
             initialName={student?.name}
             initialGrade={student?.grade}
             onSave={handleProfileUpdate}
-            mode="settings"
+            mode={currentView === 'onboarding' ? 'onboarding' : 'settings'}
           />
         );
     }
   };
 
-  // Auth Layout Logic
-  if (!session) {
-    return <Login />;
-  }
-
-  if (isAdmin && !viewingStudentId) {
-    return <StudentList onSelectStudent={setViewingStudentId} onLogout={handleLogout} />;
-  }
-
-  // User View (Onboarding Block)
-  if (currentView === 'onboarding') {
-    return (
-      <ProfileForm
-        userId={viewingStudentId!}
-        initialName={student?.name}
-        initialGrade={student?.grade}
-        onSave={handleProfileUpdate}
-        mode="onboarding"
-      />
-    );
-  }
+  if (!session) return <Login />;
+  if (isAdmin && !viewingStudentId) return <StudentList onSelectStudent={setViewingStudentId} onLogout={handleLogout} />;
 
   return (
     <div className="min-h-screen flex bg-[#FAF9F6]">
-      <Sidebar currentView={currentView} onNavigate={navigateTo} onLogout={handleLogout} />
+      <Sidebar currentView={currentView} onNavigate={setCurrentView} onLogout={handleLogout} isAdmin={isAdmin} onBackToAdmin={() => setViewingStudentId(null)} />
 
-      <main className="flex-1 p-6 lg:p-12 overflow-x-hidden">
-        {/* Simple Header */}
-        <header className="flex items-center justify-between mb-12">
-          {currentView !== 'profile' && (
-            <div className="relative group">
-              <input
-                type="text"
-                placeholder="Chercher..."
-                className="pl-10 pr-4 py-2 bg-white rounded-xl paper-border focus:border-indigo-400 outline-none w-48 md:w-64 transition-all"
-              />
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-            </div>
+      <main className="flex-1 p-6 lg:p-12 overflow-x-hidden relative">
+        {/* HEADER SIMPLE */}
+        <header className="flex items-center justify-between mb-8">
+          {!isAdmin && currentView !== 'onboarding' && (
+            <div className="relative"><input type="text" placeholder="Rechercher..." className="pl-10 pr-4 py-2 bg-white rounded-xl paper-border outline-none" /><Search className="absolute left-3 top-2.5 text-slate-400" size={18} /></div>
           )}
-          {currentView === 'profile' && (
-            <div></div> // Spacer when search is hidden
+          {isAdmin && (
+            <button onClick={() => setViewingStudentId(null)} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold">
+              <ArrowLeft size={20} /> Liste des élèves
+            </button>
           )}
-
           <div className="flex items-center gap-4">
-            {isAdmin && (
-              <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                Mode Professeur
-              </span>
-            )}
-            <div className="w-10 h-10 rounded-full bg-indigo-100 border-2 border-white overflow-hidden paper-border">
-              <img src={student?.avatar_url || MOCK_STUDENT.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-            </div>
+            {isAdmin && <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase">Professeur</span>}
+            <div className="w-10 h-10 rounded-full bg-indigo-100 overflow-hidden border-2 border-white"><img src={student?.avatar_url || MOCK_STUDENT.avatar_url} className="w-full h-full object-cover" /></div>
           </div>
         </header>
 
-        {currentView === 'profile' && (
-          <div className="mb-8">
-            <button onClick={() => navigateTo('dashboard')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold mb-6 transition-all">
-              <ArrowLeft size={20} /> Retour au tableau de bord
-            </button>
-          </div>
-        )}
-
-        {error ? (
-          <div className="p-8 bg-red-50 text-red-600 rounded-2xl border-2 border-red-100 mb-8 font-bold text-center">
-            {error}
-          </div>
-        ) : null}
         {renderContent()}
+
+        {/* MODALES */}
+        {isTaskModalOpen && <CreateTaskModal studentId={viewingStudentId!} onClose={() => setIsTaskModalOpen(false)} onSuccess={fetchData} />}
+        {isReportModalOpen && <CreateReportModal studentId={viewingStudentId!} onClose={() => setIsReportModalOpen(false)} onSuccess={fetchData} />}
       </main>
     </div>
   );
