@@ -5,7 +5,8 @@ import {
   BookOpen,
   FileText,
   GraduationCap,
-  MessageSquare
+  MessageSquare,
+  LogOut
 } from 'lucide-react';
 // Fix: Added import for MOCK_STUDENT from constants file
 import { MOCK_STUDENT } from '../constants';
@@ -66,8 +67,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout }) 
         />
       </nav>
 
-      <div className="mt-auto hidden lg:block space-y-4">
-        <div className="bg-slate-50 p-4 rounded-2xl paper-border border-dashed border-slate-200">
+      <div className="mt-auto space-y-4">
+        <div className="bg-slate-50 p-4 rounded-2xl paper-border border-dashed border-slate-200 hidden lg:block">
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Session active</p>
           <p className="text-slate-800 text-xs font-bold">{MOCK_STUDENT.name} • {MOCK_STUDENT.grade}</p>
         </div>
@@ -76,8 +77,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout }) 
           <button
             onClick={onLogout}
             className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-red-500 font-bold text-xs py-2 transition-colors"
+            title="Se déconnecter"
           >
-            Se déconnecter
+            <LogOut size={20} />
+            <span className="hidden lg:inline">Se déconnecter</span>
           </button>
         )}
       </div>

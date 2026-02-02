@@ -62,6 +62,13 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setIsAdmin(false);
+    setViewingStudentId(null);
+  };
+
   const checkUserRole = async (userId?: string, email?: string) => {
     if (!userId) {
       setIsAdmin(false);
@@ -75,11 +82,19 @@ const App: React.FC = () => {
     }
 
     // 2. Database Role Check (Fallback)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', userId)
       .single();
+
+    // Security Fix: Detect Ghost Users
+    if (error || !data) {
+      console.warn("Utilisateur authentifié mais sans profil. Déconnexion forcée.");
+      await handleLogout();
+      alert("Ce compte n'a pas de profil actif ou a été supprimé. Contactez votre professeur.");
+      return;
+    }
 
     if (data?.role === 'admin') {
       setIsAdmin(true);
@@ -87,13 +102,6 @@ const App: React.FC = () => {
       setIsAdmin(false);
       setViewingStudentId(userId); // Student views themselves
     }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setIsAdmin(false);
-    setViewingStudentId(null);
   };
 
   const handleToggleTask = async (taskId: string, currentStatus: boolean) => {
