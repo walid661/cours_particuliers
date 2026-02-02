@@ -17,7 +17,7 @@ const SessionReportDetail: React.FC<SessionReportDetailProps> = ({ report }) => 
         <div className="mb-12">
           <div className="flex items-center gap-3 text-slate-400 uppercase text-xs font-black tracking-widest mb-2">
             <ClipboardList size={14} />
-            Séance du {report.date}
+            Séance du {report.created_at}
           </div>
           <h2 className="text-4xl font-bold text-slate-800">{report.subject}</h2>
         </div>
@@ -41,7 +41,7 @@ const SessionReportDetail: React.FC<SessionReportDetailProps> = ({ report }) => 
               Commentaires du professeur
             </h3>
             <p className="text-slate-700 leading-loose text-lg font-medium">
-              {report.fullFeedback}
+              {report.full_feedback}
             </p>
           </section>
 
@@ -52,7 +52,7 @@ const SessionReportDetail: React.FC<SessionReportDetailProps> = ({ report }) => 
               Objectifs pour la prochaine séance
             </h3>
             <ul className="space-y-4">
-              {report.nextGoals.map((goal, idx) => (
+              {report.next_goals.map((goal, idx) => (
                 <li key={idx} className="flex items-start gap-3 text-slate-700 font-bold">
                   <div className="w-6 h-6 rounded-full bg-white border-2 border-indigo-200 flex items-center justify-center shrink-0 mt-0.5">
                     <div className="w-2 h-2 rounded-full bg-indigo-400"></div>
@@ -77,7 +77,7 @@ const SessionReportDetail: React.FC<SessionReportDetailProps> = ({ report }) => 
           </button>
         </div>
       </div>
-      
+
       {/* Visual background element */}
       <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
         <MessageSquare size={300} strokeWidth={1} />

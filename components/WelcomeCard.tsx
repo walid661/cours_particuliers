@@ -5,17 +5,18 @@ import { Student } from '../types';
 
 interface WelcomeCardProps {
   student: Student;
+  overallProgress: number;
   onRevise: () => void;
 }
 
-const WelcomeCard: React.FC<WelcomeCardProps> = ({ student, onRevise }) => {
+const WelcomeCard: React.FC<WelcomeCardProps> = ({ student, overallProgress, onRevise }) => {
   return (
     <div className="bg-white p-8 rounded-[32px] paper-border relative overflow-hidden">
       <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
         <div className="relative shrink-0">
-          <img 
-            src={student.avatar} 
-            alt={student.name} 
+          <img
+            src={student.avatar_url || "https://picsum.photos/200"}
+            alt={student.name}
             className="w-28 h-28 md:w-36 md:h-36 rounded-3xl border-4 border-slate-50 object-cover shadow-sm -rotate-2"
           />
         </div>
@@ -25,12 +26,12 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({ student, onRevise }) => {
             Salut {student.name} !
           </h2>
           <p className="text-slate-500 font-medium mb-6 text-lg max-w-md">
-            Prête pour une nouvelle séance ? Tu as déjà complété 
-            <span className="text-indigo-600 font-bold"> {student.overallProgress}% </span> 
+            Prête pour une nouvelle séance ? Tu as déjà complété
+            <span className="text-indigo-600 font-bold"> {overallProgress}% </span>
             de tes objectifs.
           </p>
-          
-          <button 
+
+          <button
             onClick={onRevise}
             className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all group active:scale-95"
           >

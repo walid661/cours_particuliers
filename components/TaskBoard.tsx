@@ -17,19 +17,19 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks }) => {
 
       <div className="space-y-4">
         {tasks.map((task) => (
-          <div 
-            key={task.id} 
+          <div
+            key={task.id}
             className={`${task.color} p-4 rounded-xl border-2 border-white paper-border cursor-pointer transition-transform hover:scale-[1.02] flex items-start gap-3`}
           >
-            <button className={`mt-1 ${task.isCompleted ? 'text-indigo-600' : 'text-slate-400'}`}>
-              {task.isCompleted ? <CheckCircle2 size={18} /> : <Circle size={18} />}
+            <button className={`mt-1 ${task.is_completed ? 'text-indigo-600' : 'text-slate-400'}`}>
+              {task.is_completed ? <CheckCircle2 size={18} /> : <Circle size={18} />}
             </button>
             <div className="flex-1">
-              <p className={`font-bold text-slate-800 text-sm ${task.isCompleted ? 'line-through opacity-40' : ''}`}>
+              <p className={`font-bold text-slate-800 text-sm ${task.is_completed ? 'line-through opacity-40' : ''}`}>
                 {task.title}
               </p>
               <p className="text-[10px] font-bold uppercase text-slate-500 mt-1 opacity-60">
-                {task.category} • {task.dueDate}
+                {task.category} • {task.due_date}
               </p>
             </div>
           </div>

@@ -1,41 +1,46 @@
-
 export interface Student {
+  id: string;
   name: string;
-  avatar: string;
+  avatar_url?: string; // Changed from avatar
   grade: string;
-  overallProgress: number;
+  role: 'student' | 'admin';
 }
 
 export interface Task {
   id: string;
+  student_id: string;
   title: string;
   category: string;
   color: string;
-  dueDate: string;
-  isCompleted: boolean;
+  due_date: string; // Changed from dueDate
+  is_completed: boolean; // Changed from isCompleted
 }
 
 export interface Document {
   id: string;
+  student_id?: string;
   name: string;
-  type: 'pdf' | 'doc' | 'image';
-  date: string;
+  type: 'pdf' | 'doc' | 'image'; // You might want to match DB text type
+  created_at: string; // Used for date
   size: string;
-  url?: string;
+  file_url: string; // Changed from url
 }
 
 export interface SubjectProgress {
-  subject: string;
+  id: string;
+  student_id: string;
+  name: string; // Changed from subject
   progress: number;
   color: string;
 }
 
 export interface SessionReport {
   id: string;
-  date: string;
+  student_id: string;
+  created_at: string; // Used for date
   subject: string;
   summary: string;
-  fullFeedback: string;
-  nextGoals: string[];
-  isNew?: boolean;
+  full_feedback: string; // Changed from fullFeedback
+  next_goals: string[]; // Changed from nextGoals
+  is_new?: boolean; // Changed from isNew
 }

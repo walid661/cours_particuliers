@@ -7,9 +7,10 @@ interface DocumentListProps {
   documents: Document[];
   onDocClick: (doc: Document) => void;
   onAddDocument: (file: File) => void;
+  isAdmin?: boolean;
 }
 
-const DocumentList: React.FC<DocumentListProps> = ({ documents, onDocClick, onAddDocument }) => {
+const DocumentList: React.FC<DocumentListProps> = ({ documents, onDocClick, onAddDocument, isAdmin }) => {
   const getIcon = (type: string) => {
     switch (type) {
       case 'pdf': return <FileText className="text-rose-400" size={18} />;
@@ -25,20 +26,22 @@ const DocumentList: React.FC<DocumentListProps> = ({ documents, onDocClick, onAd
         Derniers Documents
       </h3>
 
-      <div className="mb-4">
-        <label className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-indigo-200 rounded-xl bg-indigo-50 text-indigo-500 font-bold cursor-pointer hover:bg-indigo-100 transition-all">
-          <input
-            type="file"
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                onAddDocument(e.target.files[0]);
-              }
-            }}
-          />
-          + Ajouter un document
-        </label>
-      </div>
+      {isAdmin && (
+        <div className="mb-4">
+          <label className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-indigo-200 rounded-xl bg-indigo-50 text-indigo-500 font-bold cursor-pointer hover:bg-indigo-100 transition-all">
+            <input
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  onAddDocument(e.target.files[0]);
+                }
+              }}
+            />
+            + Ajouter un document
+          </label>
+        </div>
+      )}
 
       <div className="space-y-2">
         {documents.map((doc) => (
@@ -53,7 +56,7 @@ const DocumentList: React.FC<DocumentListProps> = ({ documents, onDocClick, onAd
               </div>
               <div>
                 <p className="font-bold text-slate-700 text-sm">{doc.name}</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{doc.date} • {doc.size}</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{doc.created_at} • {doc.size}</p>
               </div>
             </div>
 
