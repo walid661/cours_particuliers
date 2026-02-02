@@ -20,21 +20,26 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ initialName = '', initialGrad
         setLoading(true);
 
         try {
+            // Récupérer l'email pour être sûr de bien remplir le profil
+            const { data: { user } } = await supabase.auth.getUser();
+
+            // CORRECTION : On utilise .upsert() pour créer OU modifier
             const { error } = await supabase
                 .from('profiles')
                 .upsert({
                     id: userId,
                     name,
                     grade,
-                    role: 'student' // Force student role on creation/update for safety
+                    role: 'student', // On s'assure qu'il reste élève
+                    email: user?.email // On remet l'email au passage
                 })
                 .select();
 
             if (error) throw error;
             onSave();
-        } catch (error) {
+        } catch (error: any) { // Typage any pour attraper le message
             console.error('Error updating profile:', error);
-            alert('Erreur lors de la sauvegarde du profil.');
+            alert(`Erreur : ${error.message || 'Impossible de sauvegarder'}`);
         } finally {
             setLoading(false);
         }
