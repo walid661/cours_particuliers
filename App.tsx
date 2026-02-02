@@ -12,7 +12,6 @@ import {
 import { Session } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import WelcomeCard from './components/WelcomeCard';
-import ProgressCard from './components/ProgressCard';
 import TaskBoard from './components/TaskBoard';
 import DocumentList from './components/DocumentList';
 import SessionReportList from './components/SessionReportList';
@@ -267,31 +266,69 @@ const App: React.FC = () => {
     // VUE ÉLÈVE CLASSIQUE
     switch (currentView) {
       case 'dashboard':
-        const overallProgress = subjects.length > 0
-          ? Math.round(subjects.reduce((acc, curr) => acc + (curr.progress || 0), 0) / subjects.length)
-          : 0;
         return (
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+            {/* COLONNE GAUCHE : Bienvenue + Documents */}
             <div className="xl:col-span-2 space-y-8">
-              <WelcomeCard student={student || MOCK_STUDENT} overallProgress={overallProgress} onRevise={() => setCurrentView('courses')} />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white p-6 rounded-[24px] paper-border">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><BookOpen className="text-blue-400" size={24} /> Mes Progrès</h3>
-                  <div className="space-y-6">
-                    {subjects.map((sub, idx) => <ProgressCard key={idx} subject={sub.name} progress={sub.progress} color={sub.color} />)}
-                  </div>
+              <WelcomeCard student={student || MOCK_STUDENT} />
+
+              {/* Section Documents mise en avant */}
+              <div className="bg-white p-8 rounded-[32px] paper-border">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <BookOpen className="text-indigo-500" size={24} />
+                    Mes Documents
+                  </h3>
+                  <span className="text-slate-400 text-sm font-bold">{documents.length} fichiers</span>
                 </div>
-                <DocumentList documents={documents} onDocClick={(doc) => { setSelectedDoc(doc); setCurrentView('doc-detail'); }} onAddDocument={() => { }} isAdmin={false} />
+                <DocumentList
+                  documents={documents}
+                  onDocClick={(doc) => { setSelectedDoc(doc); setCurrentView('doc-detail'); }}
+                  onAddDocument={() => { }}
+                  isAdmin={false}
+                />
               </div>
             </div>
+
+            {/* COLONNE DROITE : Devoirs + Rapports */}
             <div className="space-y-8">
               <TaskBoard tasks={tasks} />
-              {reports.length > 0 && (
-                <div onClick={() => setCurrentView('reports')} className="bg-emerald-50 p-6 rounded-[24px] paper-border border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-colors group">
-                  <h4 className="font-bold text-emerald-800 mb-2">Dernier compte rendu</h4>
-                  <p className="text-sm text-emerald-700 italic line-clamp-2">"{reports[0].summary}"</p>
+
+              {/* Liste des Comptes Rendus (Simplifiée et directe) */}
+              <div className="bg-white p-6 rounded-[24px] paper-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-lg">Comptes Rendus</h3>
+                  <button
+                    onClick={() => setCurrentView('reports')}
+                    className="text-xs font-bold text-indigo-600 hover:underline"
+                  >
+                    Voir tout
+                  </button>
                 </div>
-              )}
+
+                <div className="space-y-3">
+                  {reports.slice(0, 3).map((r) => (
+                    <div
+                      key={r.id}
+                      onClick={() => { setSelectedReport(r); setCurrentView('report-detail'); }}
+                      className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl cursor-pointer hover:bg-emerald-100 transition-colors"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-bold text-emerald-600 uppercase">{r.subject}</span>
+                        <span className="text-xs text-emerald-500">{r.created_at}</span>
+                      </div>
+                      <p className="font-bold text-emerald-900 text-sm line-clamp-2">
+                        {r.summary}
+                      </p>
+                    </div>
+                  ))}
+                  {reports.length === 0 && (
+                    <p className="text-slate-400 italic text-sm text-center py-4">Aucun compte rendu.</p>
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
         );
