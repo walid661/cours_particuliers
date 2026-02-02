@@ -8,7 +8,8 @@ import {
   Upload,
   User as UserIcon,
   LogOut,
-  MessageSquare // Ajout de l'icône
+  MessageSquare, // Ajout de l'icône
+  Mic // Ajout Mic
 } from 'lucide-react';
 import { Session } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
@@ -22,6 +23,7 @@ import StudentList from './components/StudentList';
 import ProfileForm from './components/ProfileForm';
 import CreateTaskModal from './components/CreateTaskModal';
 import CreateReportModal from './components/CreateReportModal';
+import VoiceReportModal from './components/VoiceReportModal';
 
 import { MOCK_STUDENT } from './constants';
 import { Document, SessionReport } from './types';
@@ -53,6 +55,7 @@ const App: React.FC = () => {
   // Modals States
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- AUTH & INITIALIZATION ---
@@ -205,6 +208,14 @@ const App: React.FC = () => {
               <p className="text-slate-500 font-bold uppercase tracking-wider text-xs">Classe : {student?.grade || 'Non définie'}</p>
             </div>
             <div className="flex gap-4">
+              <button
+                onClick={() => setIsVoiceModalOpen(true)}
+                className="bg-rose-50 text-rose-600 px-4 py-3 rounded-xl font-bold hover:bg-rose-100 transition-colors flex items-center gap-2"
+                title="Bilan Vocal avec IA"
+              >
+                <Mic size={20} /> <span className="hidden xl:inline">Bilan Vocal</span>
+              </button>
+
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-100 transition-colors flex items-center gap-2"
@@ -416,6 +427,7 @@ const App: React.FC = () => {
         {/* MODALES */}
         {isTaskModalOpen && <CreateTaskModal studentId={viewingStudentId!} onClose={() => setIsTaskModalOpen(false)} onSuccess={fetchData} />}
         {isReportModalOpen && <CreateReportModal studentId={viewingStudentId!} onClose={() => setIsReportModalOpen(false)} onSuccess={fetchData} />}
+        {isVoiceModalOpen && <VoiceReportModal studentName={student?.name || 'Élève'} onClose={() => setIsVoiceModalOpen(false)} />}
       </main>
     </div>
   );
