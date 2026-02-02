@@ -87,11 +87,12 @@ const App: React.FC = () => {
       .eq('id', userId)
       .single();
 
-    // Security Fix: Detect Ghost Users
+    // Security Fix: Detect Ghost Users but redirect to Onboarding
     if (error || !data) {
-      console.warn("Utilisateur authentifié mais sans profil. Déconnexion forcée.");
-      await handleLogout();
-      alert("Ce compte n'a pas de profil actif ou a été supprimé. Contactez votre professeur.");
+      console.warn("Profil manquant -> Redirection vers Onboarding.");
+      setIsAdmin(false);
+      setViewingStudentId(userId); // Keep ID to create profile
+      setCurrentView('onboarding'); // Force onboarding view
       return;
     }
 

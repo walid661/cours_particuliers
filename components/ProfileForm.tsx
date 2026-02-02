@@ -22,14 +22,19 @@ const ProfileForm: React.FC<ProfileFormProps> = ({ initialName = '', initialGrad
         try {
             const { error } = await supabase
                 .from('profiles')
-                .update({ name, grade })
-                .eq('id', userId);
+                .upsert({
+                    id: userId,
+                    name,
+                    grade,
+                    role: 'student' // Force student role on creation/update for safety
+                })
+                .select();
 
             if (error) throw error;
             onSave();
         } catch (error) {
             console.error('Error updating profile:', error);
-            alert('Erreur lors de la mise à jour du profil.');
+            alert('Erreur lors de la sauvegarde du profil.');
         } finally {
             setLoading(false);
         }
