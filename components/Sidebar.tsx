@@ -94,11 +94,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout, is
       </nav>
 
       <div className="mt-auto space-y-4">
-        <div className="bg-slate-50 p-4 rounded-2xl paper-border border-dashed border-slate-200 hidden lg:block">
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1">Session active</p>
-          <p className="text-slate-800 text-xs font-bold">{MOCK_STUDENT.name} • {MOCK_STUDENT.grade}</p>
-        </div>
-
         {onLogout && (
           <button
             onClick={onLogout}

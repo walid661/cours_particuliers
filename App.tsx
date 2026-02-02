@@ -7,12 +7,13 @@ import {
   FilePlus,
   Upload,
   User as UserIcon,
-  LogOut
+  LogOut,
+  MessageSquare // Ajout de l'icône
 } from 'lucide-react';
 import { Session } from '@supabase/supabase-js';
 import Sidebar from './components/Sidebar';
 import WelcomeCard from './components/WelcomeCard';
-import TaskBoard from './components/TaskBoard';
+// Suppression de l'import TaskBoard car section supprimée
 import DocumentList from './components/DocumentList';
 import SessionReportList from './components/SessionReportList';
 import SessionReportDetail from './components/SessionReportDetail';
@@ -267,13 +268,14 @@ const App: React.FC = () => {
     switch (currentView) {
       case 'dashboard':
         return (
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* 1. Welcome Card (Pleine Largeur) */}
+            <WelcomeCard student={student || MOCK_STUDENT} />
 
-            {/* COLONNE GAUCHE : Bienvenue + Documents */}
-            <div className="xl:col-span-2 space-y-8">
-              <WelcomeCard student={student || MOCK_STUDENT} />
+            {/* 2. Grille Principale (Documents & Rapports) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-              {/* Section Documents mise en avant */}
+              {/* SECTION GAUCHE: Documents */}
               <div className="bg-white p-8 rounded-[32px] paper-border">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold flex items-center gap-2">
@@ -289,19 +291,17 @@ const App: React.FC = () => {
                   isAdmin={false}
                 />
               </div>
-            </div>
 
-            {/* COLONNE DROITE : Devoirs + Rapports */}
-            <div className="space-y-8">
-              <TaskBoard tasks={tasks} />
-
-              {/* Liste des Comptes Rendus (Simplifiée et directe) */}
-              <div className="bg-white p-6 rounded-[24px] paper-border">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-lg">Comptes Rendus</h3>
+              {/* SECTION DROITE: Comptes Rendus (Mise en avant) */}
+              <div className="bg-white p-8 rounded-[32px] paper-border">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <MessageSquare className="text-emerald-500" size={24} />
+                    Comptes Rendus
+                  </h3>
                   <button
                     onClick={() => setCurrentView('reports')}
-                    className="text-xs font-bold text-indigo-600 hover:underline"
+                    className="text-sm font-bold text-indigo-600 hover:underline"
                   >
                     Voir tout
                   </button>
