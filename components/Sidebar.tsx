@@ -6,7 +6,8 @@ import {
   FileText,
   GraduationCap,
   MessageSquare,
-  LogOut
+  LogOut,
+  User
 } from 'lucide-react';
 // Fix: Added import for MOCK_STUDENT from constants file
 import { MOCK_STUDENT } from '../constants';
@@ -64,6 +65,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout }) 
           label="Documents"
           active={currentView === 'documents' || currentView === 'doc-detail'}
           onClick={() => onNavigate('documents')}
+        />
+        <NavItem
+          icon={<User size={20} />}
+          label="Mon Profil"
+          active={currentView === 'profile'}
+          onClick={() => onNavigate('profile')}
         />
       </nav>
 
