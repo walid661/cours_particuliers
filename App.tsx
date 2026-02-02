@@ -304,6 +304,149 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
+        // --- TEACHER VIEW (ADMIN) ---
+        if (isAdmin) {
+          return (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+              {/* 1. Header Admin: Fiche Élève */}
+              <div className="bg-white p-8 rounded-[32px] paper-border relative overflow-hidden">
+                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                  <div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h1 className="text-3xl font-bold text-slate-800">📂 Dossier : {student?.name || 'Élève'}</h1>
+                      <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold border border-indigo-200">
+                        {student?.grade || 'Classe inconnue'}
+                      </span>
+                    </div>
+                    <p className="text-slate-500 font-medium">Espace de supervision pédagogique</p>
+                  </div>
+
+                  <button
+                    onClick={() => setViewingStudentId(null)}
+                    className="bg-red-50 text-red-600 hover:bg-red-100 px-6 py-3 rounded-2xl font-bold flex items-center gap-2 transition-colors border border-red-100"
+                  >
+                    <ArrowLeft size={20} /> Retour à la liste
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Command Zone (Actions Rapides) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Card: Add Document */}
+                <button
+                  onClick={() => document.getElementById('admin-doc-upload')?.click()}
+                  className="bg-white p-6 rounded-[24px] paper-border hover:border-indigo-300 hover:shadow-lg transition-all text-left group flex flex-col justify-between h-40"
+                >
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                    <FileText size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-800 group-hover:text-indigo-700">Ajouter un Document</h3>
+                    <p className="text-slate-400 text-sm">PDF, Exercice, Fiche...</p>
+                  </div>
+                  {/* Hidden Input for generic doc upload trigger */}
+                  <input type="file" id="admin-doc-upload" className="hidden" onChange={(e) => e.target.files && handleAddDocument(e.target.files[0])} />
+                </button>
+
+                {/* Card: New Report */}
+                <button
+                  onClick={() => alert('Ouvrir Modale: Nouveau Compte Rendu')}
+                  className="bg-white p-6 rounded-[24px] paper-border hover:border-emerald-300 hover:shadow-lg transition-all text-left group flex flex-col justify-between h-40"
+                >
+                  <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <MessageSquare size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-800 group-hover:text-emerald-700">Rédiger un Bilan</h3>
+                    <p className="text-slate-400 text-sm">Résumé de séance...</p>
+                  </div>
+                </button>
+
+                {/* Card: Give Homework */}
+                <button
+                  onClick={() => alert('Ouvrir Modale: Nouveau Devoir')}
+                  className="bg-white p-6 rounded-[24px] paper-border hover:border-orange-300 hover:shadow-lg transition-all text-left group flex flex-col justify-between h-40"
+                >
+                  <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                    <Plus size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-800 group-hover:text-orange-700">Donner un Devoir</h3>
+                    <p className="text-slate-400 text-sm">Exercice à faire...</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* 3. Synthetic View (3 Columns) */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+
+                {/* Col 1: Documents Récents */}
+                <div className="bg-white p-6 rounded-[24px] paper-border">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><FileText size={20} className="text-slate-400" /> Documents Récents</h3>
+                    <button onClick={() => navigateTo('documents')} className="text-sm font-bold text-indigo-600 hover:underline">Voir tout</button>
+                  </div>
+                  <div className="space-y-4">
+                    {documents.slice(0, 3).map((doc) => (
+                      <div key={doc.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer" onClick={() => handleDocClick(doc)}>
+                        <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-500 shrink-0">
+                          <FileText size={20} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-800 text-sm truncate">{doc.name}</p>
+                          <p className="text-xs text-slate-400">{doc.created_at}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {documents.length === 0 && <p className="text-slate-400 italic text-sm">Aucun document.</p>}
+                  </div>
+                </div>
+
+                {/* Col 2: Historique Rapports */}
+                <div className="bg-white p-6 rounded-[24px] paper-border">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><MessageSquare size={20} className="text-slate-400" /> Rapports</h3>
+                    <button onClick={() => navigateTo('reports')} className="text-sm font-bold text-emerald-600 hover:underline">Voir tout</button>
+                  </div>
+                  <div className="space-y-4">
+                    {reports.slice(0, 3).map((report) => (
+                      <div key={report.id} className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 cursor-pointer hover:shadow-sm transition-all" onClick={() => handleReportClick(report)}>
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-bold text-emerald-800 text-sm">{report.created_at}</span>
+                          {report.is_new && <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>}
+                        </div>
+                        <p className="text-xs text-emerald-700 line-clamp-2 italic">"{report.summary}"</p>
+                      </div>
+                    ))}
+                    {reports.length === 0 && <p className="text-slate-400 italic text-sm">Aucun rapport.</p>}
+                  </div>
+                </div>
+
+                {/* Col 3: Devoirs (Tasks) */}
+                <div className="bg-white p-6 rounded-[24px] paper-border">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2"><Plus size={20} className="text-slate-400" /> Devoirs à faire</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {tasks.filter(t => !t.is_completed).slice(0, 5).map((task) => (
+                      <div key={task.id} className="flex items-start gap-3">
+                        <div className={`w-3 h-3 rounded-full mt-1.5 shrink-0 ${task.color?.includes('emerald') ? 'bg-emerald-400' : 'bg-indigo-400'}`}></div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">{task.title}</p>
+                          <p className="text-xs text-slate-400">{task.due_date || 'En cours'}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {tasks.filter(t => !t.is_completed).length === 0 && <p className="text-slate-400 italic text-sm">Aucun devoir en cours.</p>}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          );
+        }
+
+        // --- STUDENT VIEW (ORIGINAL) ---
         const overallProgress = subjects.length > 0
           ? Math.round(subjects.reduce((acc, curr) => acc + (curr.progress || 0), 0) / subjects.length)
           : 0;

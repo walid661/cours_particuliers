@@ -63,12 +63,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout, is
           active={currentView === 'dashboard'}
           onClick={() => onNavigate('dashboard')}
         />
-        <NavItem
-          icon={<BookOpen size={20} />}
-          label="Mes Cours"
-          active={currentView === 'courses'}
-          onClick={() => onNavigate('courses')}
-        />
+        {!isAdmin && (
+          <NavItem
+            icon={<BookOpen size={20} />}
+            label="Mes Cours"
+            active={currentView === 'courses'}
+            onClick={() => onNavigate('courses')}
+          />
+        )}
         <NavItem
           icon={<MessageSquare size={20} />}
           label="Comptes Rendus"
