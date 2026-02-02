@@ -400,8 +400,14 @@ const App: React.FC = () => {
             </button>
           )}
           <div className="flex items-center gap-4">
-            {isAdmin && <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase">Professeur</span>}
-            <div className="w-10 h-10 rounded-full bg-indigo-100 overflow-hidden border-2 border-white"><img src={student?.avatar_url || MOCK_STUDENT.avatar_url} className="w-full h-full object-cover" /></div>
+            {isAdmin && (
+              <>
+                <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase">Professeur</span>
+                <div className="w-10 h-10 rounded-full bg-indigo-100 overflow-hidden border-2 border-white">
+                  <img src={student?.avatar_url || MOCK_STUDENT.avatar_url} className="w-full h-full object-cover" />
+                </div>
+              </>
+            )}
           </div>
         </header>
 

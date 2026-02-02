@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, onLogout, is
         {onLogout && (
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-red-500 font-bold text-xs py-2 transition-colors"
+            className="w-full flex items-center justify-center gap-2 text-red-600 bg-red-50 hover:bg-red-100 font-bold text-sm py-4 rounded-xl transition-colors"
             title="Se déconnecter"
           >
             <LogOut size={20} />

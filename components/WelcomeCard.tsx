@@ -10,14 +10,6 @@ const WelcomeCard: React.FC<WelcomeCardProps> = ({ student }) => {
   return (
     <div className="bg-white p-8 rounded-[32px] paper-border relative overflow-hidden">
       <div className="flex flex-col md:flex-row items-center gap-10 relative z-10">
-        <div className="relative shrink-0">
-          <img
-            src={student.avatar_url || "https://picsum.photos/200"}
-            alt={student.name}
-            className="w-28 h-28 md:w-36 md:h-36 rounded-3xl border-4 border-slate-50 object-cover shadow-sm -rotate-2"
-          />
-        </div>
-
         <div className="text-center md:text-left">
           <h2 className="text-4xl font-bold text-slate-800 mb-2">
             Salut {student.name} !
